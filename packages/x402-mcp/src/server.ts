@@ -68,7 +68,7 @@ function createPaidToolMethod(
 					content: [{ type: "text", text: JSON.stringify(obj) }] as const,
 				} as const;
 			};
-			const payment = extra._meta?.["x402.payment"];
+			const payment = extra._meta?.["x402/payment"];
 
 			const atomicAmountForAsset = processPriceToAtomicAmount(
 				options.price,
@@ -94,7 +94,7 @@ function createPaidToolMethod(
 			if (!payment) {
 				return makeErrorResponse({
 					x402Version,
-					error: "_meta.x402.payment is required",
+					error: "_meta.x402/payment is required",
 					accepts: [paymentRequirements],
 				}) as any; // I genuinely dont why this is needed
 			}
@@ -153,7 +153,7 @@ function createPaidToolMethod(
 						if (!result._meta) {
 							result._meta = {};
 						}
-						result._meta["x402.payment-response"] = {
+						result._meta["x402/payment-response"] = {
 							success: true,
 							transaction: settlement.transaction,
 							network: settlement.network,

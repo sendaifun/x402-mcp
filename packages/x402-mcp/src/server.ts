@@ -17,6 +17,7 @@ import { x402Version } from "./shared.js";
 import { type ZodRawShape } from "zod";
 import type { Address } from "viem";
 import z from "zod";
+import { Address as SolanaAddress } from "@solana/kit";
 
 type Config = NonNullable<Parameters<typeof createMcpHandler>[2]>;
 
@@ -25,7 +26,7 @@ export interface ServerPaymentOptions {
 }
 
 export interface ServerPaymentConfig {
-	recipient: Address;
+	recipient: Address | SolanaAddress
 	facilitator: FacilitatorConfig;
 	network: "base-sepolia" | "base" | "solana" | "solana-devnet" | "avalanche-fuji" | "avalanche" | "iotex" | "sei" | "sei-testnet";
 }

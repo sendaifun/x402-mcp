@@ -90,7 +90,10 @@ function createPaidToolMethod(
 
 			const paymentKinds = await supported();
 			const { maxAmountRequired, asset } = atomicAmountForAsset;
-			let extraRecord = [asset.address];
+			let extraRecord = {
+				asset: asset.address,
+				feePayer: undefined as string | undefined,
+			};
 
 			let feePayer: string | undefined;
 
@@ -107,10 +110,7 @@ function createPaidToolMethod(
 						`The facilitator did not provide a fee payer for network: ${config.network}`,
 					);
 				}
-
-				if (config.network === "solana" || config.network === "solana-devnet") {
-					extraRecord.push(feePayer);
-				}
+					extraRecord.feePayer = feePayer;
 			}
 
 			const paymentRequirements: PaymentRequirements = {
@@ -131,19 +131,19 @@ function createPaidToolMethod(
 					x402Version,
 					error: "_meta.x402/payment is required",
 					accepts: [paymentRequirements],
-				}) as any; // I genuinely dont why this is needed
+				}); 
 			}
 
 			let decodedPayment: PaymentPayload;
 			try {
-				decodedPayment = exact.evm.decodePayment(z.string().parse(payment));
+				decodedPayment = exact.evm.decodePayment(z.string().parse(payment))
 				decodedPayment.x402Version = x402Version;
 			} catch (error) {
 				return makeErrorResponse({
 					x402Version,
 					error: "Invalid payment",
 					accepts: [paymentRequirements],
-				}) as any; // I genuinely dont why this is needed
+				})
 			}
 
 			const verification = await verify(decodedPayment, paymentRequirements);
@@ -153,7 +153,7 @@ function createPaidToolMethod(
 					error: verification.invalidReason,
 					accepts: [paymentRequirements],
 					payer: verification.payer,
-				}) as any;
+				})
 			}
 
 			// Execute the tool

@@ -1,10 +1,8 @@
 # To run
 
-1. Sign into the [Coinbase CDP portal](https://portal.cdp.coinbase.com)
+1. `AI_GATEWAY_API_KEY` from https://vercel.com/ai-gateway
 
 2. Set the following environment variables:
-   - `CDP_API_KEY_ID`
-   - `CDP_API_KEY_SECRET`
-   - `CDP_WALLET_SECRET`
+   - `KEYPAIR_SECRET` = Base58 encoded private key [ can create from any wallet and export it's private key]
 
-3. Run `pnpm dev`
+2. Run `pnpm dev`

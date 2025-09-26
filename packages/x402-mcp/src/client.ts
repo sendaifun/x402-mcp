@@ -29,6 +29,7 @@ import {
 	MultiNetworkSigner,
 	isSvmSignerWallet,
 	isEvmSignerWallet,
+	createSigner,
 } from "x402/types";
 import { createConnectedClient } from "x402/types";
 import { RpcDevnet, SolanaRpcApiDevnet, RpcMainnet, SolanaRpcApiMainnet } from '@solana/kit';
@@ -81,7 +82,7 @@ async function callToolWithPayment(
 }
 
 export interface EvmClientPaymentOptions {
-	account: MultiNetworkSigner["evm"];
+	account: MultiNetworkSigner["evm"] | `0x${string}`;
 	maxPaymentValue?: number;
 	network: EvmNetwork;
 }
@@ -142,6 +143,10 @@ export async function withPayment(
 				),
 		}),
 		execute: async () => {
+			if (typeof options.account === "string") {
+				options.account = await createSigner(options.network, options.account);
+			}
+
 			if (isSvmSignerWallet(options.account)) {
 				const client = createConnectedClient(options.network) as RpcDevnet<SolanaRpcApiDevnet> | RpcMainnet<SolanaRpcApiMainnet>;
 				const address = options.account.address;
@@ -197,11 +202,11 @@ export async function withPayment(
 				outputSchema: z.record(z.any()).optional(),
 				payTo: z
 					.string()
-					.regex(isSvmSignerWallet(options.account) ? SvmAddressRegex : EvmAddressRegex),
+					.regex(isSvmSignerWallet(options.account as MultiNetworkSigner["svm"]) ? SvmAddressRegex : EvmAddressRegex),
 				maxTimeoutSeconds: z.number().int(),
 				asset: z
 					.string()
-					.regex(isSvmSignerWallet(options.account) ? SvmAddressRegex : EvmAddressRegex),
+					.regex(isSvmSignerWallet(options.account as MultiNetworkSigner["svm"]) ? SvmAddressRegex : EvmAddressRegex),
 				extra: z
 					.any()
 					.describe(

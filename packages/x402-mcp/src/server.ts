@@ -27,7 +27,7 @@ export interface ServerPaymentOptions {
 export interface ServerPaymentConfig {
 	recipient: Address;
 	facilitator: FacilitatorConfig;
-	network: "base-sepolia" | "base";
+	network: "base-sepolia" | "base" | "solana" | "solana-devnet" | "avalanche-fuji" | "avalanche" | "iotex" | "sei" | "sei-testnet";
 }
 
 export interface ConfigWithPayment extends Config, ServerPaymentConfig {}
@@ -88,7 +88,7 @@ function createPaidToolMethod(
 				resource: `mcp://tool/${name}`,
 				mimeType: "application/json",
 				description,
-				extra: asset.eip712,
+				extra: [asset.address]
 			};
 
 			if (!payment) {

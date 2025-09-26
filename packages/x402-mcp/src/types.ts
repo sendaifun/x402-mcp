@@ -7,9 +7,10 @@ import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { type ZodRawShape } from "zod";
 import type { createMcpHandler } from "mcp-handler";
 import type { Address } from "viem";
-import { FacilitatorConfig } from "x402/types";
+import { FacilitatorConfig, Network } from "x402/types";
 
 type Config = NonNullable<Parameters<typeof createMcpHandler>[2]>;
+
 
 export interface PaymentOptions {
 	price: number; // in USD
@@ -34,3 +35,6 @@ export interface ExtendedServerMethods {
 }
 
 export type ExtendedMcpServer = McpServer & ExtendedServerMethods;
+
+export type EvmNetwork = Exclude<Network, "solana" | "solana-devnet">
+export type SvmNetwork = Extract<Network, "solana" | "solana-devnet">

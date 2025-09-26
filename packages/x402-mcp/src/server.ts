@@ -26,9 +26,18 @@ export interface ServerPaymentOptions {
 }
 
 export interface ServerPaymentConfig {
-	recipient: Address | SolanaAddress
+	recipient: Address | SolanaAddress;
 	facilitator: FacilitatorConfig;
-	network: "base-sepolia" | "base" | "solana" | "solana-devnet" | "avalanche-fuji" | "avalanche" | "iotex" | "sei" | "sei-testnet";
+	network:
+		| "base-sepolia"
+		| "base"
+		| "solana"
+		| "solana-devnet"
+		| "avalanche-fuji"
+		| "avalanche"
+		| "iotex"
+		| "sei"
+		| "sei-testnet";
 }
 
 export interface ConfigWithPayment extends Config, ServerPaymentConfig {}
@@ -61,7 +70,7 @@ function createPaidToolMethod(
 		cb,
 	) => {
 		const cbWithPayment: ToolCallback<any> = async (args, extra) => {
-			const { verify, settle } = useFacilitator(config.facilitator);
+			const { verify, settle, supported } = useFacilitator(config.facilitator);
 			const makeErrorResponse = (obj: Record<string, unknown>) => {
 				return {
 					isError: true,
@@ -78,7 +87,32 @@ function createPaidToolMethod(
 			if ("error" in atomicAmountForAsset) {
 				throw new Error("Failed to process price to atomic amount");
 			}
+
+			const paymentKinds = await supported();
 			const { maxAmountRequired, asset } = atomicAmountForAsset;
+			let extraRecord = [asset.address];
+
+			let feePayer: string | undefined;
+
+			if (config.network === "solana" || config.network === "solana-devnet") {
+				for (const kind of paymentKinds.kinds) {
+					if (kind.network === config.network && kind.scheme === "exact") {
+						feePayer = kind?.extra?.feePayer;
+						break;
+					}
+				}
+
+				if (!feePayer) {
+					throw new Error(
+						`The facilitator did not provide a fee payer for network: ${config.network}`,
+					);
+				}
+
+				if (config.network === "solana" || config.network === "solana-devnet") {
+					extraRecord.push(feePayer);
+				}
+			}
+
 			const paymentRequirements: PaymentRequirements = {
 				scheme: "exact",
 				network: config.network,
@@ -89,7 +123,7 @@ function createPaidToolMethod(
 				resource: `mcp://tool/${name}`,
 				mimeType: "application/json",
 				description,
-				extra: [asset.address]
+				extra: extraRecord,
 			};
 
 			if (!payment) {

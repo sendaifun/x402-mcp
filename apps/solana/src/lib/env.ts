@@ -3,7 +3,8 @@ import { z } from "zod";
 
 export const env = createEnv({
 	server: {
-		KEYPAIR_SECRET: z.instanceof(Uint8Array).optional(),
+		// KEYPAIR_SECRET: z.instanceof(Uint8Array).optional(),
+		KEYPAIR_SECRET: z.string().optional(),
 		NETWORK: z.enum(["solana", "solana-devnet"]).default("solana-devnet"),
 		URL: z.string().url().default("http://localhost:3000"),
 	},

@@ -1,11 +1,10 @@
 import { z, ZodType } from "zod";
 import {
 	Address,
-	createPublicClient,
-	createWalletClient,
-	http,
+	PublicClient,
+	Chain,
+	Transport,
 	parseAbi,
-	type Account,
 } from "viem";
 import {
 	avalanche,
@@ -14,10 +13,9 @@ import {
 	seiTestnet,
 	iotex,
 	base,
-	baseSepolia,
+	baseSepolia
 } from "viem/chains";
 import { createPaymentHeader } from "x402/client";
-import { Wallet } from "x402/types";
 import { x402Version } from "./shared.js";
 import {
 	Tool,
@@ -27,7 +25,14 @@ import {
 } from "ai";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { EvmNetwork, SvmNetwork } from "./types.js";
-import { KeyPairSigner, createSolanaRpc, address as svmAddress } from "@solana/kit";
+import {
+	MultiNetworkSigner,
+	isSvmSignerWallet,
+	isEvmSignerWallet,
+} from "x402/types";
+import { createConnectedClient } from "x402/types";
+import { RpcDevnet, SolanaRpcApiDevnet, RpcMainnet, SolanaRpcApiMainnet } from '@solana/kit';
+
 
 interface MCPClientInternal extends MCPClient {
 	// Private methods
@@ -76,13 +81,13 @@ async function callToolWithPayment(
 }
 
 export interface EvmClientPaymentOptions {
-	account: Account | Address;
+	account: MultiNetworkSigner["evm"];
 	maxPaymentValue?: number;
 	network: EvmNetwork;
 }
 
 export interface SvmClientPaymentOptions {
-	account: KeyPairSigner;
+	account: MultiNetworkSigner["svm"];
 	maxPaymentValue?: number;
 	network: SvmNetwork;
 }
@@ -104,34 +109,18 @@ export const networkToChain = {
 	"sei-testnet": seiTestnet,
 } as const;
 
-const isSvmOptions = (o: ClientPaymentOptions): o is SvmClientPaymentOptions =>
-	o.network === "solana" || o.network === "solana-devnet";
 
-const getAccountAddress = (options: ClientPaymentOptions, account: Account | Address | KeyPairSigner): string => {
-	return isSvmOptions(options) ? account.toString(): (account as Address);
-}
-
-const getEvmPublicClient = (options: EvmClientPaymentOptions) => {
-	return createPublicClient({
-		chain: networkToChain[options.network],
-		transport: http(),
-	});
-}
-
-const getSvmPublicClient = (options: SvmClientPaymentOptions) => {
-	return createSolanaRpc(options.network === "solana-devnet" ? "https://api.devnet.solana.com" : "https://api.mainnet-beta.solana.com");
-}
 
 const networkToUsdcAddress = {
 	"base-sepolia": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
 	base: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
 	solana: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
 	"solana-devnet": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
-	"avalanche-fuji": "0x9664f526ec410929ed7472f9097fa9a4b7e57093",
-	avalanche: "0x9664f526ec410929ed7472f9097fa9a4b7e57093",
-	iotex: "0x9664f526ec410929ed7472f9097fa9a4b7e57093",
-	sei: "0x9664f526ec410929ed7472f9097fa9a4b7e57093",
-	"sei-testnet": "0x9664f526ec410929ed7472f9097fa9a4b7e57093",
+	"avalanche-fuji": "0x5425890298aed601595a70AB815c96711a31Bc65",
+	avalanche: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+	iotex: "0xcdf79194c6c285077a58da47641d4dbe51f63542",
+	sei: "0xe15fc38f6d8c56af07bbcbe3baf5708a2bf42392",
+	"sei-testnet": "0x4fcf1784b31630811181f670aea7a7bef803eaed",
 } as const;
 
 export async function withPayment(
@@ -153,15 +142,25 @@ export async function withPayment(
 				),
 		}),
 		execute: async () => {
-			const address = getAccountAddress(options, options.account);
-		    if (isSvmOptions(options)) { 
-				const {value} = await getSvmPublicClient(options).getBalance(svmAddress(address)).send()
+			if (isSvmSignerWallet(options.account)) {
+				const client = createConnectedClient(options.network) as RpcDevnet<SolanaRpcApiDevnet> | RpcMainnet<SolanaRpcApiMainnet>;
+				const address = options.account.address;
+				const { value } =  await client.getBalance(address).send();
 				return {
 					amount: value.toString(),
 				};
-			} else {
-				const result = await getEvmPublicClient(options).getBalance({ 
-					address: address as Address 
+			} 
+			if (isEvmSignerWallet(options.account)) {
+				const client = createConnectedClient(options.network) as PublicClient<Transport, Chain, undefined>;
+				const address =
+				typeof options.account === "object"
+					? (options.account as any).address // unable to type this
+					: options.account;
+				const result = await client.readContract({
+					address: networkToUsdcAddress[options.network] as `0x${string}`,
+					abi: parseAbi(["function balanceOf(address) view returns (uint256)"]),
+					functionName: "balanceOf",
+					args: [address as `0x${string}`],
 				});
 				return {
 					amount: result.toString(),
@@ -176,7 +175,17 @@ export async function withPayment(
 		inputSchema: z.object({
 			paymentRequirements: z.object({
 				scheme: z.literal("exact"),
-				network: z.enum(["base-sepolia", "base", "solana", "solana-devnet", "avalanche-fuji", "avalanche", "iotex", "sei", "sei-testnet"]),
+				network: z.enum([
+					"base-sepolia",
+					"base",
+					"solana",
+					"solana-devnet",
+					"avalanche-fuji",
+					"avalanche",
+					"iotex",
+					"sei",
+					"sei-testnet",
+				]),
 				maxAmountRequired: z
 					.string()
 					.describe(
@@ -186,9 +195,13 @@ export async function withPayment(
 				description: z.string(),
 				mimeType: z.string(),
 				outputSchema: z.record(z.any()).optional(),
-				payTo: z.string().regex(isSvmOptions(options) ? SvmAddressRegex : EvmAddressRegex),
+				payTo: z
+					.string()
+					.regex(isSvmSignerWallet(options.account) ? SvmAddressRegex : EvmAddressRegex),
 				maxTimeoutSeconds: z.number().int(),
-				asset: z.string().regex(isSvmOptions(options) ? SvmAddressRegex : EvmAddressRegex),
+				asset: z
+					.string()
+					.regex(isSvmSignerWallet(options.account) ? SvmAddressRegex : EvmAddressRegex),
 				extra: z
 					.any()
 					.describe(
@@ -218,7 +231,7 @@ export async function withPayment(
 			}
 
 			const paymentHeader = await createPaymentHeader(
-				options.account as unknown as Wallet | KeyPairSigner, // dont know why this is needed
+				options.account as MultiNetworkSigner["evm"] | MultiNetworkSigner["svm"],
 				x402Version,
 				input.paymentRequirements,
 			);

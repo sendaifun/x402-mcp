@@ -60,8 +60,10 @@ const handler = createPaidMcpHandler(
 	},
 	{
 		recipient: sellerAccount.address,
-		facilitator : {
-			url: "https://facilitator.payai.network",
+		facilitator: {
+			url:
+				(process.env.FACILITATOR_URL! as `${string}://${string}`) ||
+				facilitator.url,
 		},
 		network: env.NETWORK,
 	},

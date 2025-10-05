@@ -5,8 +5,10 @@ export const env = createEnv({
 	server: {
 		CDP_WALLET_SECRET: z.string(),
 		CDP_API_KEY_ID: z.string(),
-		CDP_API_KEY_SECRET: z.string(),
-		NETWORK: z.enum(["base-sepolia", "base"]).default("base-sepolia"),
+		CDP_API_KEY_SECRET: z.string().optional(),
+		KEYPAIR_SECRET: z.string().default(""),
+		EVM_NETWORK: z.enum(["base-sepolia", "base"]).default("base-sepolia"),
+		SOLANA_NETWORK: z.enum(["solana-devnet", "solana"]).default("solana-devnet"),
 		URL: z.string().url().default("http://localhost:3000"),
 	},
 
@@ -18,7 +20,9 @@ export const env = createEnv({
 		CDP_WALLET_SECRET: process.env.CDP_WALLET_SECRET,
 		CDP_API_KEY_ID: process.env.CDP_API_KEY_ID,
 		CDP_API_KEY_SECRET: process.env.CDP_API_KEY_SECRET,
-		NETWORK: process.env.NETWORK,
+		KEYPAIR_SECRET: process.env.KEYPAIR_SECRET,
+		EVM_NETWORK: process.env.EVM_NETWORK,
+		SOLANA_NETWORK: process.env.SOLANA_NETWORK,
 		URL: process.env.VERCEL_PROJECT_PRODUCTION_URL
 			? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
 			: undefined,

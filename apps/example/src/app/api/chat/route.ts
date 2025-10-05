@@ -12,13 +12,23 @@ export const maxDuration = 30;
 export const POST = async (request: Request) => {
 	const { messages, model }: { messages: UIMessage[]; model: string } =
 		await request.json();
-
-	const account = await getOrCreatePurchaserAccount();
-
-	const mcpClient = await createMCPClient({
+	
+	// Create MCP client with payment based on network type
+	const mcpClientPromise = createMCPClient({
 		transport: new StreamableHTTPClientTransport(new URL("/mcp", env.URL)),
-	}).then((client) => withPayment(client, { account, network: env.NETWORK }));
+	});
 
+	const mcpClient = env.KEYPAIR_SECRET === ""
+		? await mcpClientPromise.then(async (client) => {
+				const account = await getOrCreatePurchaserAccount("evm");
+				return withPayment(client, { account, network: env.EVM_NETWORK });
+		  })
+		: await mcpClientPromise.then(async (client) => {
+				const account = await getOrCreatePurchaserAccount("svm");
+				return withPayment(client, { account, network: env.SOLANA_NETWORK });
+		  });
+
+	const network = env.KEYPAIR_SECRET === "" ? env.EVM_NETWORK : env.SOLANA_NETWORK;
 	const tools = await mcpClient.tools();
 
 	const result = streamText({
@@ -45,6 +55,6 @@ export const POST = async (request: Request) => {
 	return result.toUIMessageStreamResponse({
 		sendSources: true,
 		sendReasoning: true,
-		messageMetadata: () => ({ network: env.NETWORK }),
+		messageMetadata: () => ({ network }),
 	});
 };

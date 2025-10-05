@@ -61,9 +61,9 @@ const handler = createPaidMcpHandler(
 	{
 		recipient: sellerAccount.address,
 		facilitator : {
-			url: facilitator.url,
+			url: process.env.FACILITATOR_URL as `${string}://${string}` ?? facilitator.url,
 		},
-		network: env.NETWORK,
+		network: env.EVM_NETWORK,
 	},
 );
 

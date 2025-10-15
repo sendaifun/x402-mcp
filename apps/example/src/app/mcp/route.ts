@@ -63,7 +63,7 @@ const handler = createPaidMcpHandler(
 		facilitator : {
 			url: process.env.FACILITATOR_URL as `${string}://${string}` ?? facilitator.url,
 		},
-		network: env.EVM_NETWORK,
+		network: process.env.KEYPAIR_SECRET === "" ? env.EVM_NETWORK: env.SOLANA_NETWORK,
 	},
 );
 

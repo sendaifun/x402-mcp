@@ -14,22 +14,26 @@ export const POST = async (request: Request) => {
 		await request.json();
 	
 	// Create MCP client with payment based on network type
-	const mcpClientPromise = createMCPClient({
-		transport: new StreamableHTTPClientTransport(new URL("/mcp", env.URL)),
+	const mcpEvmClientPromise = createMCPClient({
+		transport: new StreamableHTTPClientTransport(new URL("/mcp/evm", env.URL)),
 	});
 
-	const mcpClient = env.KEYPAIR_SECRET === ""
-		? await mcpClientPromise.then(async (client) => {
-				const account = await getOrCreatePurchaserAccount("evm");
-				return withPayment(client, { account, network: env.EVM_NETWORK });
-		  })
-		: await mcpClientPromise.then(async (client) => {
-				const account = await getOrCreatePurchaserAccount("svm");
-				return withPayment(client, { account, network: env.SOLANA_NETWORK });
-		  });
+	const mcpSvmClientPromise = createMCPClient({
+		transport: new StreamableHTTPClientTransport(new URL("/mcp/svm", env.URL)),
+	});
 
-	const network = env.KEYPAIR_SECRET === "" ? env.EVM_NETWORK : env.SOLANA_NETWORK;
-	const tools = await mcpClient.tools();
+	const mcpSvmClient = await mcpSvmClientPromise.then(async (client) => {
+		const account = await getOrCreatePurchaserAccount("svm");
+		return withPayment(client, { account, network: "solana" });
+	});
+
+	const mcpEvmClient = await mcpEvmClientPromise.then(async (client) => {
+		const account = await getOrCreatePurchaserAccount("evm");
+		return withPayment(client, { account, network: env.EVM_NETWORK });
+	});
+
+	// const tools = await mcpClient.tools();
+	const tools = {...await mcpSvmClient.tools(), ...await mcpEvmClient.tools()};
 
 	const result = streamText({
 		model,
@@ -48,13 +52,14 @@ export const POST = async (request: Request) => {
 		messages: convertToModelMessages(messages),
 		stopWhen: stepCountIs(5),
 		onFinish: async () => {
-			await mcpClient.close();
+			await mcpSvmClient.close();
+			await mcpEvmClient.close();
 		},
 		system: "ALWAYS prompt the user to confirm before authorizing payments",
 	});
 	return result.toUIMessageStreamResponse({
 		sendSources: true,
 		sendReasoning: true,
-		messageMetadata: () => ({ network }),
+		messageMetadata: () => ({ networks : ["solana", "ethereum"]}),
 	});
 };

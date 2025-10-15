@@ -33,6 +33,7 @@ import {
 } from "x402/types";
 import { createConnectedClient } from "x402/types";
 import { RpcDevnet, SolanaRpcApiDevnet, RpcMainnet, SolanaRpcApiMainnet } from '@solana/kit';
+import { getUsdcAddress } from "x402/shared/evm";
 
 
 interface MCPClientInternal extends MCPClient {
@@ -162,7 +163,7 @@ export async function withPayment(
 					? (options.account as any).address // unable to type this
 					: options.account;
 				const result = await client.readContract({
-					address: networkToUsdcAddress[options.network] as `0x${string}`,
+					address: getUsdcAddress(client),
 					abi: parseAbi(["function balanceOf(address) view returns (uint256)"]),
 					functionName: "balanceOf",
 					args: [address as `0x${string}`],
